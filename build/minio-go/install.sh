@@ -15,9 +15,12 @@
 #  limitations under the License.
 #
 
-MINIO_GO_VERSION=$(curl --retry 10 -Ls -o /dev/null -w "%{url_effective}" https://github.com/minio/minio-go/releases/latest | sed "s/https:\/\/github.com\/minio\/minio-go\/releases\/tag\///")
-if [ -z "$MINIO_GO_VERSION" ]; then
-	echo "unable to get minio-go version from github"
+# The version is pinned in ../.sdk-refs rather than resolved from the newest
+# GitHub release, so the test source this suite compiles is a function of this
+# repository and not of when the build ran.
+. "${MINT_ROOT_DIR}/.sdk-refs"
+if [ -z "${MINIO_GO_VERSION:-}" ]; then
+	echo "MINIO_GO_VERSION must be set in ${MINT_ROOT_DIR}/.sdk-refs"
 	exit 1
 fi
 

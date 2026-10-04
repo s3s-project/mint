@@ -2,6 +2,8 @@
 
 `Dockerfile.s3s` builds the archived mint suite with the SDK checkouts pinned in [`../.sdk-refs`](../.sdk-refs), and applies the patches in this directory to them. Upstream's [`Dockerfile`](../Dockerfile) is left untouched, so it still follows the newest release of every SDK.
 
+The same file pins the two versions the build used to resolve from `releases/latest`: the mc client binary that `build/mc/install.sh` installs and the minio-go test source that `build/minio-go/install.sh` compiles. Those are pins, not patches, so they are recorded in [`../.sdk-refs`](../.sdk-refs) with the command that produced them; neither script falls back to the newest release when the pin is missing.
+
 A fix may live here only when the failure it removes is caused by mint's own test code, or by a client library disagreeing with AWS, and never when the failure is caused by the S3 implementation under test. Each fix below answers that question. The answer is checked, not asserted: the case is run against a real MinIO server, which is the reference implementation these suites are written for, and against the s3s proxy. A case that fails on both is a client defect and may be fixed here; a case that passes on the reference server and fails only on the implementation under test is that implementation's problem and stays in its expected-failure list.
 
 Fixes to the build itself, such as a download source that stopped existing, are recorded here as well; they change no test and retire no expected-failure entry, and the section says so.

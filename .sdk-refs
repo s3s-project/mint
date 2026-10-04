@@ -8,6 +8,10 @@
 # Dockerfile.s3s reads the revisions from here instead, so the test sources in
 # the image are a function of this repository alone.
 #
+# The client binary mint installs and the test sources it downloads are pinned
+# the same way, for the same reason: an upstream release moving under the build
+# would change which mc and minio-go cases run and so change the sweep.
+#
 # The pinned revisions are the versions the archived minio/mint:edge image
 # carries (minio-js 8.0.6, minio-java 8.6.0), and that is the point of pinning
 # them: upstream has moved on since (8.0.7 and 9.0.3 at the time of writing), and
@@ -23,3 +27,12 @@ MINIO_JAVA_REF=f6cfc76769fe9f069acc5b1b52d5eadecee1c0b6       # minio/minio-java
 # Maven artifact version of MINIO_JAVA_REF. The install script downloads the
 # *-all.jar artifacts by version, because Maven publishes no per-commit build.
 MINIO_JAVA_VERSION=8.6.0
+# mc and minio-go release to follow, resolved from their newest release on
+# 2026-10-04 with
+#   curl -Ls -o /dev/null -w '%{url_effective}' https://github.com/minio/mc/releases/latest
+#   curl -Ls -o /dev/null -w '%{url_effective}' https://github.com/minio/minio-go/releases/latest
+# and then kept fixed here, because both scripts used to repeat that lookup at
+# build time. build/mc/install.sh and build/minio-go/install.sh read them from
+# this file and stop when either is missing.
+MC_VERSION=RELEASE.2025-08-13T08-35-41Z
+MINIO_GO_VERSION=v7.3.0
