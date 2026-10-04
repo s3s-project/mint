@@ -8,10 +8,13 @@
 # Dockerfile.s3s reads the revisions from here instead, so the test sources in
 # the image are a function of this repository alone.
 #
-# The pinned revisions are the ones the archived minio/mint:edge image carries,
-# so a patched build can be compared against that image one suite at a time.
-# When bumping a revision, re-check the patch in patches/ that touches the same
-# checkout and re-run the full sweep described in patches/README.md.
+# The pinned revisions are the versions the archived minio/mint:edge image
+# carries (minio-js 8.0.6, minio-java 8.6.0), and that is the point of pinning
+# them: upstream has moved on since (8.0.7 and 9.0.3 at the time of writing), and
+# building against the newest release would fold an SDK upgrade into the
+# comparison between a patched image and the archived one, leaving no way to tell
+# which difference came from a patch. When bumping a revision, re-check the patch
+# in patches/ that touches the same checkout and repeat the full sweep.
 # The values are commit ids, not the annotated tag objects: the install scripts
 # check `git rev-parse HEAD` against them, and an annotated tag resolves to a tag
 # object rather than to the commit it names.
