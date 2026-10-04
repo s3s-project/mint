@@ -18,6 +18,10 @@
 # Checkout at /mint/test-run/minio-js/
 # During run of the test copy it to the the /min/run/core/minio-js/minio-js
 
+# The revision and the patch replace upstream's "newest tag" lookup; see
+# ../.sdk-refs for the pin and ../patches/README.md for why the patch is here.
+. "${MINT_ROOT_DIR}/.sdk-refs"
+
 install_path="./test-run/minio-js/"
 rm -rf $install_path
 
@@ -25,14 +29,16 @@ git clone https://github.com/minio/minio-js.git $install_path
 
 cd $install_path || exit 0
 
-# Get new tags from remote
-git fetch --tags
-# Get latest tag name
-# shellcheck disable=SC2046
-LATEST=$(git describe --tags $(git rev-list --tags --max-count=1))
+echo "Using minio-js REVISION $MINIO_JS_REF"
 
-echo "Using minio-js RELEASE $LATEST"
+git checkout "$MINIO_JS_REF" --force &>/dev/null
 
-git checkout "${LATEST}" --force &>/dev/null
+head="$(git rev-parse HEAD)"
+if [ "$head" != "$MINIO_JS_REF" ]; then
+	echo "checked out $head, expected $MINIO_JS_REF"
+	exit 1
+fi
+
+git apply "${MINT_ROOT_DIR}/patches/0001-minio-js-stat-object-last-modified.patch"
 
 npm install --quiet &>/dev/null

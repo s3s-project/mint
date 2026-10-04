@@ -1,0 +1,23 @@
+diff --git a/functional/FunctionalTest.java b/functional/FunctionalTest.java
+index 1d66b5d2..dd21a9c5 100644
+--- a/functional/FunctionalTest.java
++++ b/functional/FunctionalTest.java
+@@ -359,13 +359,15 @@ public class FunctionalTest {
+   /** Write data to given object url. */
+   public static void writeObject(String urlString, byte[] dataBytes) throws Exception {
+     Request.Builder requestBuilder = new Request.Builder();
+-    // Set header 'x-amz-acl' to 'bucket-owner-full-control', so objects created
+-    // anonymously, can be downloaded by bucket owner in AWS S3.
++    // The presigned URL does not sign any x-amz-acl header, and AWS rejects an
++    // unsigned x-amz-* header on a presigned request, so sending one only made
++    // this case fail before it could check anything. Nothing here asserted on
++    // the ACL, so dropping the header keeps what the case is meant to prove:
++    // that the presigned PUT stores the object it was signed for.
+     Request request =
+         requestBuilder
+             .url(HttpUrl.parse(urlString))
+             .method("PUT", RequestBody.create(dataBytes, null))
+-            .addHeader("x-amz-acl", "bucket-owner-full-control")
+             .build();
+     OkHttpClient transport = newHttpClient();
+     Response response = transport.newCall(request).execute();

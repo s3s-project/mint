@@ -1,0 +1,59 @@
+# Unofficial community build of the archived MinIO mint test suite (Apache-2.0).
+#
+# This is the s3s entry point: the publish workflow uses the presence of this
+# file as the marker for "the s3s branch", and this is the only Dockerfile that
+# pins what the build installs. Upstream's Dockerfile is left untouched and
+# still follows the newest release of every SDK.
+#
+# What differs from Dockerfile:
+#   * the SDK revisions mint clones are pinned in .sdk-refs, so the test sources
+#     in the image are a function of this repository instead of "whatever was
+#     newest when the build ran";
+#   * the patches in patches/ are applied to those checkouts; patches/README.md
+#     states what each one fixes and why it may live here at all;
+#   * the OCI labels record the source revision and say that this is not an
+#     official MinIO build.
+#
+# The pins live in .sdk-refs rather than in build args so that the file the
+# install scripts read and the file a tag names cannot drift apart.
+#
+# MINT_SOURCE_REF is the commit this image was built from; the publish workflow
+# passes it so that every published layer set names its own source.
+
+ARG UBUNTU_IMAGE=ubuntu:24.04
+FROM ${UBUNTU_IMAGE}
+
+ARG MINT_SOURCE_REF="unknown"
+
+LABEL org.opencontainers.image.title="mint test suite for S3 servers (unofficial community build)" \
+      org.opencontainers.image.description="Unofficial build of the archived MinIO mint test suite with pinned SDK revisions, used as the client-side E2E suite by s3s. Not affiliated with or endorsed by MinIO, Inc." \
+      org.opencontainers.image.source="https://github.com/s3s-project/mint" \
+      org.opencontainers.image.revision="$MINT_SOURCE_REF" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+ENV DEBIAN_FRONTEND noninteractive
+ENV LANG C.UTF-8
+ENV GOROOT /usr/local/go
+ENV GOPATH /usr/local/gopath
+ENV PATH $GOPATH/bin:$GOROOT/bin:$PATH
+ENV MINT_ROOT_DIR /mint
+
+RUN apt-get --yes update && apt-get --yes upgrade && \
+    apt-get --yes --quiet install wget jq curl git dnsmasq
+
+# The toolchain layer only reads the files preinstall.sh needs, so editing a
+# patch, an install script or a test reuses it instead of reinstalling Go, Node
+# and Gradle. The second COPY restores the whole tree before the suites are
+# built, so the resulting image is the same.
+COPY source.sh install-packages.list preinstall.sh create-data-files.sh /mint/
+
+WORKDIR /mint
+
+RUN /mint/create-data-files.sh
+RUN /mint/preinstall.sh
+
+COPY . /mint
+
+RUN /mint/release.sh
+
+ENTRYPOINT ["/mint/entrypoint.sh"]

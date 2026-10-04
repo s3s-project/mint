@@ -728,8 +728,11 @@ class AwsSdkRubyTest
 
       # Generate presigned Put URL and parse it
       uri = URI.parse(presignedPutWrapper(bucket_name, file_name, log_output))
-      request = Net::HTTP::Put.new(uri.request_uri, 'content-type' => 'application/octet-stream',
-                                   'x-amz-acl' => 'public-read')
+      # No 'x-amz-acl' header here: the presigned URL does not sign it, and AWS
+      # rejects an unsigned x-amz-* header on a presigned request, so the header
+      # only ever proved that a lenient server ignores it. The case still checks
+      # that the presigned PUT stores the object and that the content matches.
+      request = Net::HTTP::Put.new(uri.request_uri, 'content-type' => 'application/octet-stream')
       request.body = IO.read(File.join(data_dir, file_name))
 
       http = Net::HTTP.new(uri.host, uri.port)

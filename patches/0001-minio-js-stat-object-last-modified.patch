@@ -1,0 +1,13 @@
+diff --git a/tests/functional/functional-tests.js b/tests/functional/functional-tests.js
+index 61f9bb0..01dc131 100644
+--- a/tests/functional/functional-tests.js
++++ b/tests/functional/functional-tests.js
+@@ -729,7 +729,7 @@ describe('functional tests', function () {
+         assert.equal(stat.metaData['Testing'], metaData['Testing'])
+         assert.equal(stat.metaData['randomstuff'], metaData['randomstuff'])
+         etag = stat.etag
+-        modifiedDate = stat.modifiedDate
++        modifiedDate = stat.lastModified
+         done()
+       })
+     })

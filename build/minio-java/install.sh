@@ -17,9 +17,12 @@
 
 SPOTBUGS_VERSION="4.2.2" ## needed since 8.0.2 release
 JUNIT_VERSION="5.11.4"   ## JUnit Jupiter (JUnit 5) version
-MINIO_JAVA_VERSION=$(curl --retry 10 -s "https://repo1.maven.org/maven2/io/minio/minio/maven-metadata.xml" | sed -n "/<latest>/{s/<.[^>]*>//g;p;q}" | sed "s/  *//g")
-if [ -z "$MINIO_JAVA_VERSION" ]; then
-	echo "unable to get latest minio-java version from maven"
+
+# The version and the revision are pinned in ../.sdk-refs instead of asking Maven
+# for the newest release; see ../patches/README.md for the patch applied below.
+. "${MINT_ROOT_DIR}/.sdk-refs"
+if [ -z "$MINIO_JAVA_VERSION" ] || [ -z "$MINIO_JAVA_REF" ]; then
+	echo "MINIO_JAVA_VERSION and MINIO_JAVA_REF must be set in ${MINT_ROOT_DIR}/.sdk-refs"
 	exit 1
 fi
 
@@ -27,7 +30,23 @@ test_run_dir="$MINT_RUN_CORE_DIR/minio-java"
 git clone --quiet https://github.com/minio/minio-java.git "$test_run_dir/minio-java.git"
 (
 	cd "$test_run_dir/minio-java.git"
-	git checkout --quiet "tags/${MINIO_JAVA_VERSION}"
+	git checkout --quiet "$MINIO_JAVA_REF"
+
+	head="$(git rev-parse HEAD)"
+	if [ "$head" != "$MINIO_JAVA_REF" ]; then
+		echo "checked out $head, expected $MINIO_JAVA_REF"
+		exit 1
+	fi
+
+	# The jars below are fetched from Maven by version while the test sources come
+	# from git by commit, so the version has to name this very commit.
+	tag_ref="$(git rev-parse "refs/tags/${MINIO_JAVA_VERSION}^{commit}")"
+	if [ "$tag_ref" != "$MINIO_JAVA_REF" ]; then
+		echo "tag ${MINIO_JAVA_VERSION} is $tag_ref, expected $MINIO_JAVA_REF"
+		exit 1
+	fi
+
+	git apply "${MINT_ROOT_DIR}/patches/0002-minio-java-unsigned-x-amz-acl-on-presigned-put.patch"
 
 	# Fix CORS configuration comparison - serialize to XML for comparison since CORSConfiguration lacks equals()
 	# The Xml.marshal() method converts objects to XML strings, enabling proper equality comparison

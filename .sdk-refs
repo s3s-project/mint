@@ -1,0 +1,22 @@
+# Revisions of the SDK repositories that mint clones at image build time.
+#
+# Upstream follows whatever is newest: build/minio-js/install.sh checks out the
+# newest tag of minio/minio-js, and build/minio-java/install.sh asks Maven for
+# the newest release and checks out the matching tag of minio/minio-java. Two
+# builds of the same commit therefore installed different test sources, and a
+# patch written against one of them would silently stop applying later.
+# Dockerfile.s3s reads the revisions from here instead, so the test sources in
+# the image are a function of this repository alone.
+#
+# The pinned revisions are the ones the archived minio/mint:edge image carries,
+# so a patched build can be compared against that image one suite at a time.
+# When bumping a revision, re-check the patch in patches/ that touches the same
+# checkout and re-run the full sweep described in patches/README.md.
+# The values are commit ids, not the annotated tag objects: the install scripts
+# check `git rev-parse HEAD` against them, and an annotated tag resolves to a tag
+# object rather than to the commit it names.
+MINIO_JS_REF=212f2821110e01b0ba5d81b27e11d10fdcb29d7b         # minio/minio-js tag 8.0.6
+MINIO_JAVA_REF=f6cfc76769fe9f069acc5b1b52d5eadecee1c0b6       # minio/minio-java tag 8.6.0
+# Maven artifact version of MINIO_JAVA_REF. The install script downloads the
+# *-all.jar artifacts by version, because Maven publishes no per-commit build.
+MINIO_JAVA_VERSION=8.6.0
