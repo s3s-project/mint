@@ -27,7 +27,21 @@ if [ -z "$MC_VERSION" ]; then
 fi
 
 test_run_dir="$MINT_RUN_CORE_DIR/mc"
-$WGET --output-document="${test_run_dir}/mc" "https://dl.minio.io/client/mc/release/linux-amd64/mc.${MC_VERSION}"
+
+# The client binary used to come from dl.minio.io, which answers 410 Gone since
+# the project retired that download host; the tagged GitHub release that the
+# version above is derived from carries the same build as an asset. Fetch it
+# under the name its checksum file uses and verify it before installing, so a
+# truncated or substituted download fails the build instead of shipping.
+# The asset name carries the architecture, as does the Go toolchain download in
+# preinstall.sh, so this image is built for amd64 only.
+mc_asset="mc.${MC_VERSION}"
+mc_url="https://github.com/minio/mc/releases/download/${MC_VERSION}/mc.linux-amd64.${MC_VERSION}"
+$WGET --output-document="${test_run_dir}/${mc_asset}" "${mc_url}"
+$WGET --output-document="${test_run_dir}/${mc_asset}.sha256sum" "${mc_url}.sha256sum"
+(cd "${test_run_dir}" && sha256sum --check --strict "${mc_asset}.sha256sum")
+mv "${test_run_dir}/${mc_asset}" "${test_run_dir}/mc"
+rm -f "${test_run_dir}/${mc_asset}.sha256sum"
 chmod a+x "${test_run_dir}/mc"
 
 git clone --quiet https://github.com/minio/mc.git "$test_run_dir/mc.git"

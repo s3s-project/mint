@@ -4,6 +4,8 @@
 
 A fix may live here only when the failure it removes is caused by mint's own test code, or by a client library disagreeing with AWS, and never when the failure is caused by the S3 implementation under test. Each fix below answers that question. The answer is checked, not asserted: the case is run against a real MinIO server, which is the reference implementation these suites are written for, and against the s3s proxy. A case that fails on both is a client defect and may be fixed here; a case that passes on the reference server and fails only on the implementation under test is that implementation's problem and stays in its expected-failure list.
 
+Fixes to the build itself, such as a download source that stopped existing, are recorded here as well; they change no test and retire no expected-failure entry, and the section says so.
+
 Where a fix retires an entry of the expected-failure list in the s3s repository (`xtask/src/report/mint.rs`, `EXPECTED_FAILURES`), the entry has to be removed in the same change, because the gate reports an entry whose test no longer fails at all as stale. Fixing a case that the runner aborted on can also make the cases after it run for the first time, so a change here is verified with a full sweep of both images, not with the patched case alone.
 
 The patches are applied by `build/*/install.sh` right after the pinned checkout, and a patch that stops applying fails the build instead of producing an image with unpatched test sources. After bumping a revision in [`../.sdk-refs`](../.sdk-refs), re-apply the patch to the new checkout, adjust it if upstream changed the code, and repeat the full sweep.
@@ -43,3 +45,16 @@ This test belongs to mint itself, so it is edited in place rather than patched: 
 **Why this is not a weakened test**: the case still uploads through the presigned URL and then checks that the object exists and that its content matches the source file. The header was never asserted on, and the response of the PUT was not inspected either.
 
 **Expected-failure entry**: `presignedPut(bucket_name,file_name)`. Fixing it also lets `presignedPost(...)` run again, a case the suite had stopped reaching.
+
+## 0004 - mc: the host that served the client binary answers 410
+
+**Symptom**: the image build stops in `build/mc/install.sh` with wget exit 8, "the server issued an error response", which fails `release.sh` and with it the build.
+
+**Cause**: the script fetched the binary from `https://dl.minio.io/client/mc/release/linux-amd64/mc.${MC_VERSION}`, and that download host is retired: both `dl.min.io` and `dl.minio.io` answer `410 Gone` for the path. The version the script asks for already comes from the GitHub release tag, and that same release publishes the binary as an asset.
+
+**Why this is not a weakened test**: it changes no test. The binary is the same release build, taken from the release that names it, and it is now verified against the `sha256sum` asset published next to it before being installed; the previous download had no integrity check at all.
+
+**Expected-failure entries**: none, this is a build fix.
+
+**Architecture**: the asset name, like the Go toolchain tarball in `preinstall.sh`, names `amd64`, so the image builds for amd64 only and the publish workflow carries a single platform for that reason.
+
