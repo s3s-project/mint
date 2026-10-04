@@ -34,6 +34,8 @@ docker build -f Dockerfile.s3s -t mint-s3s .
 
 The build installs the toolchains, clones the SDK repositories at the revisions in [`.sdk-refs`](./.sdk-refs), applies [`patches/`](./patches) to them and compiles the suites. The `COPY` is split so that editing a patch or a test reuses the installed toolchain layer.
 
+The image is built for `amd64` only: the upstream install scripts fetch amd64 toolchains (`preinstall.sh` the Go tarball, `build/mc/install.sh` the client binary), so the publish workflow carries a single platform.
+
 ```bash
 docker run --rm --network host \
     -e SERVER_ENDPOINT=localhost:9000 \

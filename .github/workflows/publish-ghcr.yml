@@ -86,13 +86,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Native runners build one platform each (no QEMU emulation).
+          # amd64 only. The upstream install scripts fetch amd64 toolchains -
+          # preinstall.sh takes go<version>.linux-amd64.tar.gz and
+          # build/mc/install.sh the amd64 client binary - so an arm64 runner
+          # fails with "cannot execute binary file: Exec format error". Every
+          # consumer (s3s CI on ubuntu-latest, local machines) is amd64, so the
+          # second platform is not worth carrying; teaching the upstream
+          # scripts about other architectures is out of scope for this fork.
           - platform: linux/amd64
             runs-on: ubuntu-24.04
-            arch: amd64
-          - platform: linux/arm64
-            runs-on: ubuntu-24.04-arm
-            arch: arm64
     steps:
       - uses: actions/checkout@v7
       - name: Prepare
