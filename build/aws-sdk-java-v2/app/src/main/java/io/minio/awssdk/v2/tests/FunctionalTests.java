@@ -55,6 +55,10 @@ public class FunctionalTests {
     private static Region region;
     private static String endpoint;
     private static boolean enableHTTPS;
+    // Opt-in switch: the seven cases below were written for the HTTPS suite and
+    // returned early in plaintext. Setting ENABLE_HTTP_TESTS=1 lets them run
+    // over http:// as well; leaving it unset keeps the previous behaviour.
+    private static boolean enableHTTPTests;
 
     private static final List<String> bucketsList = new ArrayList<>();
 
@@ -119,22 +123,45 @@ public class FunctionalTests {
     }
 
     // Run tests
+    //
+    // Every case runs in its own try/catch. The runner used to rethrow straight
+    // out of runTests(), and main exits on the first exception, so one failing
+    // case hid every case after it. A case that fails still fails the process at
+    // the end (main keeps its non-zero exit), and each case still logs its own
+    // PASS/FAIL line before it throws.
     public static void runTests() throws Exception {
-        createBucket_test();
-        createBucketWithVersion_test();
-        uploadObject_test();
-        uploadMultiPart_test();
-        uploadMultiPartAsync_test();
-        uploadObjectVersions_test();
-	crtClientDownload_test();
-//        uploadSnowballObjects_test();
+        List<String> failed = new ArrayList<>();
+        runCase("createBucket_test", failed, FunctionalTests::createBucket_test);
+        runCase("createBucketWithVersion_test", failed, FunctionalTests::createBucketWithVersion_test);
+        runCase("uploadObject_test", failed, FunctionalTests::uploadObject_test);
+        runCase("uploadMultiPart_test", failed, FunctionalTests::uploadMultiPart_test);
+        runCase("uploadMultiPartAsync_test", failed, FunctionalTests::uploadMultiPartAsync_test);
+        runCase("uploadObjectVersions_test", failed, FunctionalTests::uploadObjectVersions_test);
+        runCase("crtClientDownload_test", failed, FunctionalTests::crtClientDownload_test);
+//        runCase("uploadSnowballObjects_test", failed, FunctionalTests::uploadSnowballObjects_test);
+        if (!failed.isEmpty()) {
+            throw new Exception("failed test cases: " + String.join(", ", failed));
+        }
+    }
+
+    private interface TestCase {
+        void run() throws Exception;
+    }
+
+    private static void runCase(String name, List<String> failed, TestCase test) {
+        try {
+            test.run();
+        } catch (Exception e) {
+            failed.add(name);
+            System.out.println("case failed: " + name + " : " + e);
+        }
     }
 
     public static void createBucket_test() throws Exception {
         if (!mintEnv) {
             System.out.println("Test: S3Client.createBucket");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -166,7 +193,7 @@ public class FunctionalTests {
         if (!mintEnv) {
             System.out.println("Test: S3Client.createBucket");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -206,7 +233,7 @@ public class FunctionalTests {
         if (!mintEnv) {
             System.out.println("Test: S3Client.putObject");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -234,7 +261,7 @@ public class FunctionalTests {
         if (!mintEnv) {
             System.out.println("Test: S3Client.uploadPart");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -262,7 +289,7 @@ public class FunctionalTests {
         if (!mintEnv) {
             System.out.println("Test: Async S3Client.uploadPart");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -290,7 +317,7 @@ public class FunctionalTests {
         if (!mintEnv) {
             System.out.println("Test: S3Client.putObject versions");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -339,7 +366,7 @@ public class FunctionalTests {
         if (!mintEnv) {
             System.out.println("Test: Async S3CrtClient.getObject");
         }
-        if (!enableHTTPS) {
+        if (!enableHTTPS && !enableHTTPTests) {
             return;
         }
 
@@ -408,6 +435,7 @@ public class FunctionalTests {
         accessKey = System.getenv("ACCESS_KEY");
         secretKey = System.getenv("SECRET_KEY");
         enableHTTPS = System.getenv("ENABLE_HTTPS").equals("1");
+        enableHTTPTests = "1".equals(System.getenv("ENABLE_HTTP_TESTS"));
 
         region = Region.US_EAST_1;
 

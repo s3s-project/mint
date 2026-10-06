@@ -70,4 +70,17 @@ This test belongs to mint itself, so it is edited in place rather than patched: 
 **Why this is not a weakened test**: the case still requires the delete to fail, and it still asserts on the error code; only the code it demands changes, from one Amazon S3 never returns to the one it documents. No assertion is dropped and no request is skipped. The other three cases in the family were re-measured against Amazon S3 and already match, so they are left alone: `ConditionalDeleteWithCorrectETag` (204, object gone), `ConditionalDeleteWithIncorrectETag` (412, object kept), `ConditionalDeleteWithWildcardExists` (204, object gone).
 
 **Expected-failure entry**: none on the backend the s3s E2E job uses today. The case that fails there is `ConditionalDeleteWithIncorrectETag` — a backend that ignores the precondition — and this change does not touch it; because the binary exits at that case, the fixed case is not even reached. The `ConditionalDeleteWithIncorrectETag` entry can only be retired together with a backend that evaluates the precondition (the s3s evaluation of the Silo backend covers that switch), at which point no `aws-sdk-go-v2` case fails and the entry has to go, because a stale entry fails the gate.
+## 0006 - aws-sdk-java-v2: the suite skipped itself in plaintext
+
+This test belongs to mint itself, so it is edited in place rather than patched: `build/aws-sdk-java-v2/app/src/main/java/io/minio/awssdk/v2/tests/FunctionalTests.java`.
+
+**Symptom**: over `http://` the `aws-sdk-java-v2` suite reports no result line at all. Seven of its cases return before doing anything, and what is left (`initTests`) only creates a bucket, so a full run counts the group as executed while it produces zero PASS or FAIL rows.
+
+**Cause**: the cases were written for the HTTPS half of the suite and each one starts with `if (!enableHTTPS) { return; }` (`createBucket_test`, `createBucketWithVersion_test`, `uploadObject_test`, `uploadMultiPart_test`, `uploadMultiPartAsync_test`, `uploadObjectVersions_test`, `crtClientDownload_test`). Nothing else blocks them: `main` builds all three clients for both schemes and hands the plaintext branch an `http://` endpoint, the trust-all TLS context exists only in the HTTPS branch, and the checksum trailers the SDK adds by default are a server-facing question, not a client-side blocker.
+
+**What the change does**: a case now returns only when neither `ENABLE_HTTPS=1` nor `ENABLE_HTTP_TESTS=1` is set, so `ENABLE_HTTP_TESTS=1` runs the seven cases over `http://` and leaving it unset reproduces the previous behaviour exactly (zero rows). The runner also executes every case inside its own `try`/`catch` and fails the process at the end when any case failed, instead of exiting at the first exception, so one failure no longer hides the cases after it; each case still logs its own PASS/FAIL line through `MintLogger` before it throws.
+
+**Why this is not a weakened test**: nothing is asserted away. No expected value, request or check is removed or relaxed - the cases stop skipping themselves, and a failing case still fails the run. The switch is deliberate: with `ENABLE_HTTP_TESTS` unset the image behaves exactly like the previous one, so the same image can be compared against itself, and the two changes are separable.
+
+**Expected-failure entries**: none yet. The first plaintext run decides which cases fail, and each entry is added after that run names the layer that owns it (server, proxy or the case itself).
 
