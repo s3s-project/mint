@@ -507,9 +507,15 @@ func testConditionalDeleteWithWildcardMissing(ctx context.Context, s3Client *s3.
 		return
 	}
 
-	// Verify error is PreconditionFailed
-	if !strings.Contains(err.Error(), "PreconditionFailed") && !strings.Contains(err.Error(), "412") {
-		failureLog(function, args, startTime, "", fmt.Sprintf("AWS SDK Go V2 expected PreconditionFailed error but got: %v", err), err).Fatal()
+	// Verify error is NoSuchKey.
+	//
+	// A wildcard If-Match on a key that does not exist answers 404 (NoSuchKey)
+	// on Amazon S3, and on servers that follow it. The earlier expectation of
+	// 412 only held on servers that ignore the precondition on DELETE
+	// altogether: they answer 204 for a missing key and let this case pass for
+	// the wrong reason.
+	if !strings.Contains(err.Error(), "NoSuchKey") && !strings.Contains(err.Error(), "404") {
+		failureLog(function, args, startTime, "", fmt.Sprintf("AWS SDK Go V2 expected NoSuchKey error but got: %v", err), err).Fatal()
 		return
 	}
 

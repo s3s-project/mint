@@ -59,4 +59,15 @@ This test belongs to mint itself, so it is edited in place rather than patched: 
 **Expected-failure entries**: none, this is a build fix.
 
 **Architecture**: the asset name, like the Go toolchain tarball in `preinstall.sh`, names `amd64`, so the image builds for amd64 only and the publish workflow carries a single platform for that reason.
+## 0005 - aws-sdk-go-v2: a conditional delete expectation that contradicts Amazon S3
+
+This test belongs to mint itself, so it is edited in place rather than patched: `run/core/aws-sdk-go-v2/main.go`, in `testConditionalDeleteWithWildcardMissing`.
+
+**Symptom**: on a server that evaluates `If-Match` on `DeleteObject`, the case fails with `AWS SDK Go V2 expected PreconditionFailed error but got: operation error S3: DeleteObject ... api error NoSuchKey`. On the MinIO build the s3s E2E suite pins today, the case never runs at all: `testConditionalDeleteWithIncorrectETag` calls `failureLog(...).Fatal()`, which exits the test binary, so the two wildcard cases that follow it are never reached (that run logs six entries, not eight).
+
+**Cause**: the case deletes a key that does not exist with `If-Match: *` and expects 412 `PreconditionFailed`. Amazon S3 answers **404 `NoSuchKey`** for that request — a wildcard precondition on a key that has no object cannot be satisfied by any version, so it is reported as a missing key rather than as a failed match. The same request measured against Amazon S3, against the pinned MinIO build and against Silo gives 404 on the first and third, and 204 (no precondition evaluation at all) on the second; the probe and its raw output are recorded in the s3s repository, in the topic that evaluated switching the E2E backend.
+
+**Why this is not a weakened test**: the case still requires the delete to fail, and it still asserts on the error code; only the code it demands changes, from one Amazon S3 never returns to the one it documents. No assertion is dropped and no request is skipped. The other three cases in the family were re-measured against Amazon S3 and already match, so they are left alone: `ConditionalDeleteWithCorrectETag` (204, object gone), `ConditionalDeleteWithIncorrectETag` (412, object kept), `ConditionalDeleteWithWildcardExists` (204, object gone).
+
+**Expected-failure entry**: none on the backend the s3s E2E job uses today. The case that fails there is `ConditionalDeleteWithIncorrectETag` — a backend that ignores the precondition — and this change does not touch it; because the binary exits at that case, the fixed case is not even reached. The `ConditionalDeleteWithIncorrectETag` entry can only be retired together with a backend that evaluates the precondition (the s3s evaluation of the Silo backend covers that switch), at which point no `aws-sdk-go-v2` case fails and the entry has to go, because a stale entry fails the gate.
 
