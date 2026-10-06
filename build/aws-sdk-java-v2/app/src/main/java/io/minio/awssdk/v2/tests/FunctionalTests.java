@@ -382,12 +382,18 @@ public class FunctionalTests {
                     .builder()
                     .bucket(bucket)
                     .build());
+	    Path downloadPath = Path.of("/tmp/test");
+	    long expectedSize = Path.of(file1Kb).toFile().length();
 	    s3CrtAsyncClient.putObject(
-		    r -> r.bucket(bucket).key(objectName), AsyncRequestBody.empty()
+		    r -> r.bucket(bucket).key(objectName), AsyncRequestBody.fromFile(Path.of(file1Kb))
 		    ).join();
 	    s3CrtAsyncClient.getObject(
-		    r -> r.bucket(bucket).key(objectName), Path.of("/tmp/test")
+		    r -> r.bucket(bucket).key(objectName), downloadPath
 		    ).join();
+	    long downloadedSize = downloadPath.toFile().length();
+	    if (downloadedSize != expectedSize) {
+		throw new IOException("downloaded " + downloadedSize + " bytes, expected " + expectedSize);
+	    }
 
             bucketsList.add(bucket);
 

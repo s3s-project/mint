@@ -83,4 +83,17 @@ This test belongs to mint itself, so it is edited in place rather than patched: 
 **Why this is not a weakened test**: nothing is asserted away. No expected value, request or check is removed or relaxed - the cases stop skipping themselves, and a failing case still fails the run. The switch is deliberate: with `ENABLE_HTTP_TESTS` unset the image behaves exactly like the previous one, so the same image can be compared against itself, and the two changes are separable.
 
 **Expected-failure entries**: none yet. The first plaintext run decides which cases fail, and each entry is added after that run names the layer that owns it (server, proxy or the case itself).
+## 0007 - aws-sdk-java-v2: a CRT download of an empty object that no server can satisfy
+
+This test belongs to mint itself, so it is edited in place rather than patched: `build/aws-sdk-java-v2/app/src/main/java/io/minio/awssdk/v2/tests/FunctionalTests.java`, in `crtClientDownload_test`.
+
+**Symptom**: with `ENABLE_HTTP_TESTS=1` this is the only failing case in the suite. It uploads a zero byte object with the CRT client and reads it back; the CRT client ranges over its part size (`Range: bytes=0-8388607`, 8 MiB), and a range against an empty object cannot be satisfied, so the server answers 416.
+
+**Cause**: the upload body was `AsyncRequestBody.empty()`, so the object had no bytes to range over. Measured with that same request against four implementations - Amazon S3 (ap-southeast-2), the s3s proxy in front of Silo, Silo directly, and the MinIO build the s3s E2E job used before - a 1 KiB object with that range answers 206, a zero byte object with that range answers 416, and a zero byte object with no range answers 200. All four agree, so the case fails on Amazon S3 too: the request is at fault, not the server.
+
+**What the change does**: upload the 1 KiB data file the rest of the suite uses (`file1Kb`, assigned in `main` before `initTests` and `runTests`) instead of an empty body, and compare the size of the downloaded file with the size that was uploaded. The CRT client, the download path and the case's success/failure logging are unchanged.
+
+**Why this is not a weakened test**: the old request could not succeed on any compliant server, so it never tested the server - it only showed that the CRT client ranges over its part size. The new request keeps the same client and the same download path with a range that can be satisfied, and the added size check makes the download itself observed rather than merely not throwing.
+
+**Expected-failure entries**: none. With a non-empty body the case passes on all four implementations above.
 
